@@ -18,7 +18,7 @@ a take-profit exit.
 | Max positions | **5** concurrent |
 | Stop loss | **−8%** software stop (enforced each run) |
 | Take profit | **+10%** market sell |
-| Scan time | Trading days, 08:00 America/Denver |
+| Scan time | Trading days, 13:45 America/Denver (≈15 min before close) |
 
 ## Architecture
 
@@ -57,18 +57,24 @@ python -m pytest tests/ -q            # 17 tests
 - **Cash-account settlement.** Proceeds settle T+1; reusing unsettled cash can
   cause Good Faith Violations (3 → 90-day restriction). Buys are sized from
   settled buying power, and a symbol exited in a run is not re-entered that run.
-- **Funding.** As of setup the account's $1,500 was a *pending deposit*
-  (~$0 tradable). Nothing trades until it settles.
-- **DRY_RUN defaults to true.** First runs report intended orders without
-  placing them; live trading requires an explicit switch. See
+- **Funding.** The $1,500 shows as a pending deposit, but Robinhood instant
+  buying power makes it spendable; the routine sizes from the broker's
+  `buying_power` figure. Cash-account settlement still applies to sale
+  *proceeds* (T+1), so rapid sell→rebuy can trigger Good Faith Violations.
+- **DRY_RUN is false (armed live).** The routine places real orders when the
+  entry rule fires during market hours. Set `DRY_RUN=true` to pause. See
   `routine/PROTOCOL.md`.
 - **Not financial advice.** A naive RSI/drop strategy can and will have losing
   trades; size and supervise accordingly.
 
 ## Going live
 
-1. Confirm the deposit has settled (`get_portfolio` buying power > 0).
-2. Paste the **Agent Instructions** from `routine/PROTOCOL.md` into the Cloud
-   Routine and set the schedule.
-3. Leave `DRY_RUN=true` for the first scheduled run; review the report.
-4. Flip to live only when you're satisfied with what it intended to do.
+1. In the app's **Routines** panel, create a routine and paste the **Agent
+   Instructions** from `routine/PROTOCOL.md`.
+2. Set the schedule to **13:45 America/Denver, trading days**.
+3. It is armed live (`DRY_RUN=false`) — it will place real orders when a signal
+   fires. Set `DRY_RUN=true` first if you'd rather start with a dry run.
+
+> The scheduled trigger must be created in the app — there is no tool to create
+> it programmatically, and each scheduled run is a fresh, independent agent that
+> reads this repo's spec.

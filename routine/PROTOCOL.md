@@ -11,9 +11,9 @@ the tested decision code in this repo (`scanner/`).
 
 - **Account:** Agentic cash account `820031821` (••••1821) — the only
   agentic-enabled account. Never trade any other account.
-- **Schedule:** Trading days, **08:00 America/Denver (MST/MDT)**. (Note: this
-  is ~30 min after the US open, not literally "end of day" — the protocol's
-  stated time governs. Update here and in the routine schedule together.)
+- **Schedule:** Trading days, **13:45 America/Denver (MT)** — ~15 minutes
+  before the US close (2:00pm MT). A true end-of-day reversion scan, so the
+  full day's move is captured. Keep this and the routine schedule in sync.
 
 ## Corrections applied vs. the original protocol (read these)
 
@@ -35,12 +35,14 @@ the tested decision code in this repo (`scanner/`).
    not re-enter a symbol it exited in the same run; size new buys only from
    **settled** cash (`get_portfolio` buying power, not total value).
 
-## DRY_RUN safety
+## Execution mode
 
-`DRY_RUN` starts **true**. On a dry run the agent computes and reports the
-exact intended orders but **places nothing**. Flip to live only on the user's
-explicit "go live". Regardless of this flag, **no order can place while the
-$1,500 deposit is unsettled** (buying power ≈ $0).
+`DRY_RUN` is **false** — armed to place **live orders** (explicit user
+instruction). Safeguards that always apply regardless: it only buys when a
+watchlist name actually meets the entry rule (≥4% daily drop AND RSI<30), only
+during regular market hours, only on account `820031821`, and never more than
+10% of tradable cash per name or more than 5 concurrent positions. To pause,
+set `DRY_RUN=true` (reports intended orders, places nothing).
 
 ---
 
@@ -51,8 +53,9 @@ exactly. Do not invent prices, RSI, or balances — every number comes from an
 MCP tool call. Account = `820031821`.
 
 1. **Buying power.** Call `get_portfolio(820031821)`. Use `buying_power.buying_power`
-   as tradable `cash`. If it is ~0 (e.g. deposit unsettled), report that and
-   **stop** — there is nothing to trade.
+   as tradable `cash` — the broker's authoritative spendable figure, which
+   already includes Robinhood instant buying power against pending deposits. If
+   it is ~0, report that and **stop** — there is nothing to trade.
 2. **Open positions.** Call `get_equity_positions(820031821)`. For each held
    symbol get a current price via `get_equity_quotes`. Record
    `average_buy_price` (the entry reference), `quantity`
